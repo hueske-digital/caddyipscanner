@@ -18,16 +18,15 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
       cargo build --release --target x86_64-unknown-linux-musl; \
     fi
 
-# Second stage: Copy the correct binary
+# Second stage: Use the built binary based on the platform
 FROM scratch
 
 ARG TARGETPLATFORM
-# Copy the correct binary depending on the platform
-RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-      cp /app/target/aarch64-unknown-linux-musl/release/caddyipscanner /app/caddyipscanner; \
-    elif [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
-      cp /app/target/x86_64-unknown-linux-musl/release/caddyipscanner /app/caddyipscanner; \
-    fi
 
-# Set the entrypoint
+# Copy the appropriate binary based on the platform directly to the scratch image
+COPY --from=builder /app/target/aarch64-unknown-linux-musl/release/caddyipscanner /app/caddyipscanner-arm64
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/caddyipscanner /app/caddyipscanner-amd64
+
+# Set the entrypoint depending on the platform
 ENTRYPOINT ["/app/caddyipscanner"]
+CMD ["sh", "-c", "if [ \"$TARGETPLATFORM\" = 'linux/arm64' ]; then exec /app/caddyipscanner-arm64; else exec /app/caddyipscanner-amd64; fi"]
