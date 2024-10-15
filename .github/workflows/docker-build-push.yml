@@ -36,7 +36,7 @@ jobs:
           push: true
           context: ./build
           tags: ghcr.io/hueske-digital/caddyipscanner:latest
-          platforms: linux/arm64,linux/amd64
+          platforms: linux/arm64
 
       - name: Do not automatically disable workflow execution
         uses: gautamkrishnar/keepalive-workflow@v1

@@ -99,7 +99,7 @@ fn update_file_with_ips(file_path: &Path, ip_map: &BTreeMap<String, String>) {
         if line.contains("@denyallexceptdefined") && line.contains("remote_ip") {
             // IPs aktualisieren
             let new_ips: Vec<String> = ip_map.values().cloned().collect();
-            let new_line = format!("@denyallexceptdefined not remote_ip {}", new_ips.join(" "));
+            let new_line = format!("@denyallexceptdefined remote_ip {}", new_ips.join(" "));
             new_lines.push(new_line);
             line_changed = true;
         } else {

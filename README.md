@@ -7,9 +7,11 @@ https://domain.tld {
     import compression
     import header
 
-@denyallexceptdefined not remote_ip 1.1.1.1 8.8.8.8 # IPs with this matcher will be updated
-    abort @denyallexceptdefined
+    @denyallexceptdefined remote_ip 1.1.1.1 8.8.8.8 #IPs with this matcher will be updated
 
-    respond "Up and running"
+    handle @denyallexceptdefined {
+        reverse_proxy service-1:8081
+    }
+    respond 403
 }
 ```
