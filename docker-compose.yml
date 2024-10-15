@@ -1,0 +1,9 @@
+services:
+  app:
+    image: ghcr.io/hueske-digital/caddyipscanner:latest
+    restart: unless-stopped
+    environment:
+      - CHECK_INTERVAL=120
+      - DNS_HOSTS
+    volumes:
+      - ${CADDY_BASE_DIR}/hosts:/conf
