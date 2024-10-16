@@ -1,10 +1,20 @@
-FROM rust:1-slim AS builder
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
-COPY Cargo.toml .
-COPY src ./src
-RUN apt-get update && apt-get install -y musl-tools
-RUN rustup target add aarch64-unknown-linux-musl && \
-    cargo build --release --target aarch64-unknown-linux-musl
-FROM scratch
-COPY --from=builder /app/target/aarch64-unknown-linux-musl/release/caddyipscanner /app/caddyipscanner
-ENTRYPOINT ["/app/caddyipscanner"]
+
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Build application
+COPY . .
+RUN cargo build --release --bin caddyipscanner
+
+# We do not need the Rust toolchain to run the binary!
+FROM debian:bookworm-slim AS runtime
+WORKDIR /app
+COPY --from=builder /app/target/release/caddyipscanner /usr/local/bin
+ENTRYPOINT ["/usr/local/bin/caddyipscanner"]
