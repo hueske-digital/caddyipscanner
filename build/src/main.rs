@@ -80,7 +80,7 @@ async fn main() {
 
 // Funktion zum Aktualisieren der Dateien mit den neuen IPs
 fn update_file_with_ips(file_path: &Path, ip_map: &BTreeMap<String, String>) {
-    // Dateiinhalt lesen
+    // Datei öffnen für Lesen und Schreiben
     let file = OpenOptions::new().read(true).write(true).open(file_path);
     let file = match file {
         Ok(f) => f,
@@ -95,22 +95,27 @@ fn update_file_with_ips(file_path: &Path, ip_map: &BTreeMap<String, String>) {
     let mut line_changed = false;
 
     for line in reader.lines() {
-        let line = line.unwrap();
+        let line = match line {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("Error reading line in {:?}: {:?}", file_path, e);
+                continue;
+            }
+        };
 
         if line.contains("@allowedClients") && line.contains("remote_ip") {
-            // Aktualisiere @allowedClients mit neuen IPs
+            // @allowedClients remote_ip aktualisieren
             let new_ips: Vec<String> = ip_map.values().cloned().collect();
             let new_line = format!("@allowedClients remote_ip {}", new_ips.join(" "));
             new_lines.push(new_line);
             line_changed = true;
-        } else if line.contains("@disallowedClients") && line.contains("not remote_ip") {
-            // Aktualisiere @disallowedClients mit neuen IPs
-            let new_ips: Vec<String> = ip_map.values().cloned().map(|ip| format!("not {}", ip)).collect();
-            let new_line = format!("@disallowedClients {}", new_ips.join(" "));
+        } else if line.contains("@disallowedClients") && line.contains("remote_ip") {
+            // @disallowedClients not remote_ip aktualisieren
+            let new_ips: Vec<String> = ip_map.values().cloned().collect();
+            let new_line = format!("@disallowedClients not remote_ip {}", new_ips.join(" "));
             new_lines.push(new_line);
             line_changed = true;
         } else {
-            // Behalte alle anderen Zeilen unverändert
             new_lines.push(line);
         }
     }
@@ -118,9 +123,19 @@ fn update_file_with_ips(file_path: &Path, ip_map: &BTreeMap<String, String>) {
     // Datei nur überschreiben, wenn sich etwas geändert hat
     if line_changed {
         println!("Updated file {:?} with new IPs: {:?}", file_path, ip_map);
-        let mut writer = OpenOptions::new().write(true).truncate(true).open(file_path).unwrap();
+        // Datei zum Schreiben öffnen und Inhalt überschreiben
+        let mut writer = match OpenOptions::new().write(true).truncate(true).open(file_path) {
+            Ok(w) => w,
+            Err(e) => {
+                eprintln!("Failed to open file {:?} for writing: {:?}", file_path, e);
+                return;
+            }
+        };
         for line in new_lines {
-            writeln!(writer, "{}", line).unwrap();
+            if let Err(e) = writeln!(writer, "{}", line) {
+                eprintln!("Failed to write to file {:?}: {:?}", file_path, e);
+                return;
+            }
         }
     }
 }
