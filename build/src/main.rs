@@ -96,10 +96,17 @@ fn update_file_with_ips(file_path: &Path, ip_map: &BTreeMap<String, String>) {
 
     for line in reader.lines() {
         let line = line.unwrap();
-        if line.contains("@denyallexceptdefined") && line.contains("remote_ip") {
-            // IPs aktualisieren
+
+        if line.contains("allowedClients") && line.contains("remote_ip") {
+            // Aktualisiere allowedClients mit neuen IPs
             let new_ips: Vec<String> = ip_map.values().cloned().collect();
-            let new_line = format!("@denyallexceptdefined remote_ip {}", new_ips.join(" "));
+            let new_line = format!("allowedClients remote_ip {}", new_ips.join(" "));
+            new_lines.push(new_line);
+            line_changed = true;
+        } else if line.contains("disallowedClients") && line.contains("not remote_ip") {
+            // Aktualisiere disallowedClients mit neuen IPs
+            let new_ips: Vec<String> = ip_map.values().cloned().map(|ip| format!("not {}", ip)).collect();
+            let new_line = format!("disallowedClients {}", new_ips.join(" "));
             new_lines.push(new_line);
             line_changed = true;
         } else {
