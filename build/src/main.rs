@@ -78,12 +78,6 @@ async fn main() {
     }
 }
 
-// Funktion zum Aktualisieren der Dateien mit den neuen IPs
-use std::collections::BTreeMap;
-use std::fs::{OpenOptions};
-use std::io::{BufReader, BufRead, Write};
-use std::path::Path;
-
 /// Funktion zum Aktualisieren der Dateien mit den neuen IPs
 fn update_file_with_ips(file_path: &Path, ip_map: &BTreeMap<String, String>) {
     // Datei öffnen für Lesen und Schreiben
