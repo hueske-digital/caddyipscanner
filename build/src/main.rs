@@ -79,10 +79,15 @@ async fn main() {
 }
 
 // Funktion zum Aktualisieren der Dateien mit den neuen IPs
+use std::collections::BTreeMap;
+use std::fs::{OpenOptions};
+use std::io::{BufReader, BufRead, Write};
+use std::path::Path;
+
+/// Funktion zum Aktualisieren der Dateien mit den neuen IPs
 fn update_file_with_ips(file_path: &Path, ip_map: &BTreeMap<String, String>) {
     // Datei öffnen für Lesen und Schreiben
-    let file = OpenOptions::new().read(true).write(true).open(file_path);
-    let file = match file {
+    let file = match OpenOptions::new().read(true).write(true).open(file_path) {
         Ok(f) => f,
         Err(e) => {
             eprintln!("Failed to open file {:?}: {:?}", file_path, e);
@@ -94,8 +99,8 @@ fn update_file_with_ips(file_path: &Path, ip_map: &BTreeMap<String, String>) {
     let mut new_lines = Vec::new();
     let mut line_changed = false;
 
-    for line in reader.lines() {
-        let line = match line {
+    for line_result in reader.lines() {
+        let line = match line_result {
             Ok(l) => l,
             Err(e) => {
                 eprintln!("Error reading line in {:?}: {:?}", file_path, e);
@@ -103,16 +108,29 @@ fn update_file_with_ips(file_path: &Path, ip_map: &BTreeMap<String, String>) {
             }
         };
 
-        if line.contains("@allowedClients") && line.contains("remote_ip") {
-            // @allowedClients remote_ip aktualisieren
+        // Funktion zum Extrahieren der führenden Leerzeichen/Tabs
+        fn get_leading_whitespace(s: &str) -> &str {
+            s.split_at(s.find(|c: char| !c.is_whitespace()).unwrap_or(s.len())).0
+        }
+
+        if (line.contains("@allowedClients") && line.contains("remote_ip"))
+            || (line.contains("@disallowedClients") && line.contains("remote_ip"))
+        {
+            // Ermitteln der führenden Leerzeichen oder Tabs
+            let leading_whitespace = get_leading_whitespace(&line);
+
+            // Bestimmen, ob es sich um allowed oder disallowed handelt
+            let is_allowed = line.contains("@allowedClients");
+
+            // Erstellen der neuen Zeile mit beibehaltenem Einzug
+            let directive = if is_allowed {
+                "@allowedClients remote_ip"
+            } else {
+                "@disallowedClients not remote_ip"
+            };
+
             let new_ips: Vec<String> = ip_map.values().cloned().collect();
-            let new_line = format!("@allowedClients remote_ip {}", new_ips.join(" "));
-            new_lines.push(new_line);
-            line_changed = true;
-        } else if line.contains("@disallowedClients") && line.contains("remote_ip") {
-            // @disallowedClients not remote_ip aktualisieren
-            let new_ips: Vec<String> = ip_map.values().cloned().collect();
-            let new_line = format!("@disallowedClients not remote_ip {}", new_ips.join(" "));
+            let new_line = format!("{}{} {}", leading_whitespace, directive, new_ips.join(" "));
             new_lines.push(new_line);
             line_changed = true;
         } else {
@@ -131,6 +149,7 @@ fn update_file_with_ips(file_path: &Path, ip_map: &BTreeMap<String, String>) {
                 return;
             }
         };
+
         for line in new_lines {
             if let Err(e) = writeln!(writer, "{}", line) {
                 eprintln!("Failed to write to file {:?}: {:?}", file_path, e);
