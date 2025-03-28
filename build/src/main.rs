@@ -1,6 +1,7 @@
 use std::env;
 use std::fs::{OpenOptions};
 use std::io::{BufRead, BufReader, Write};
+use std::net::IpAddr;
 use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
@@ -38,21 +39,27 @@ async fn main() {
 
         // IPs der Hosts abfragen
         for host in &hosts {
-            // Konvertiere den Hostnamen in den Typ `Name`
-            let name = Name::from_ascii(host).expect("Invalid hostname");
-
-            match resolver.lookup_ip(name).await {
-                Ok(lookup) => {
-                    let ip = lookup.iter().next().unwrap().to_string();
-                    new_ip_map.insert(host.to_string(), ip.clone());
-
-                    // Prüfen, ob sich die IP geändert hat (unabhängig von der Reihenfolge)
-                    if ip_map.get(*host) != Some(&ip) {
-                        any_change = true;
-                    }
+            // Wenn der Eintrag bereits eine gültige IP-Adresse ist, direkt übernehmen
+            if let Ok(ip_addr) = host.parse::<IpAddr>() {
+                let ip = ip_addr.to_string();
+                new_ip_map.insert(host.to_string(), ip.clone());
+                if ip_map.get(*host) != Some(&ip) {
+                    any_change = true;
                 }
-                Err(e) => {
-                    eprintln!("Failed to lookup host {}: {:?}", host, e);
+            } else {
+                // Andernfalls: DNS-Lookup durchführen
+                let name = Name::from_ascii(host).expect("Invalid hostname");
+                match resolver.lookup_ip(name).await {
+                    Ok(lookup) => {
+                        let ip = lookup.iter().next().unwrap().to_string();
+                        new_ip_map.insert(host.to_string(), ip.clone());
+                        if ip_map.get(*host) != Some(&ip) {
+                            any_change = true;
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to lookup host {}: {:?}", host, e);
+                    }
                 }
             }
         }
