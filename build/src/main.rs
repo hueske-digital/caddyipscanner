@@ -72,7 +72,11 @@ async fn main() {
             for entry in WalkDir::new(conf_dir).into_iter().filter_map(|e| e.ok()) {
                 let path = entry.path();
                 if path.is_file() {
-                    update_file_with_ips(path, &new_ip_map);
+                    if let Some(ext) = path.extension() {
+                        if ext == "conf" {
+                            update_file_with_ips(path, &new_ip_map);
+                        }
+                    }
                 }
             }
 
